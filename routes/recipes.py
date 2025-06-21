@@ -3,8 +3,26 @@ from flask_jwt_extended import jwt_required
 from models.recipes.recipe import Recipe
 from models import db
 from flasgger import swag_from
+from pydantic import BaseModel, ValidationError, field_validator
 
 bp_recipes = Blueprint('recipes', __name__)
+
+class RecipeInput(BaseModel):
+    title: str
+    ingredients: str
+    time_minutes: int
+
+    @field_validator('title', 'ingredients')
+    def not_empty(cls, v):
+        if not v or not isinstance(v, str) or not v.strip():
+            raise ValueError('must be a non-empty string')
+        return v
+
+    @field_validator('time_minutes')
+    def positive_int(cls, v):
+        if not isinstance(v, int) or v <= 0:
+            raise ValueError('must be a positive integer')
+        return v
 
 @bp_recipes.route('/recipes', methods=['POST'])
 @swag_from({
@@ -33,10 +51,18 @@ bp_recipes = Blueprint('recipes', __name__)
 @jwt_required()
 def create_recipe():
     data = request.get_json()
+    try:
+        validated = RecipeInput(**data)
+    except ValidationError as e:
+        # Pydantic e.errors() já retorna uma lista de dicts serializáveis
+        return jsonify({"error": [str(err['msg']) for err in e.errors()]}), 400
+    except Exception as e:
+        # Para qualquer outro erro inesperado
+        return jsonify({"error": str(e)}), 400
     new_recipe = Recipe(
-        title=data['title'],
-        ingredients=data['ingredients'],
-        time_minutes=data['time_minutes']
+        title=validated.title,
+        ingredients=validated.ingredients,
+        time_minutes=validated.time_minutes
     )
     db.session.add(new_recipe)
     db.session.commit()
