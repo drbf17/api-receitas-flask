@@ -112,3 +112,6 @@ recipes.db
 
 # Mac
 .DS_Store
+
+# Virtual Environment
+venv/
