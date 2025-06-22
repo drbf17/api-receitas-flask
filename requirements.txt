@@ -4,3 +4,5 @@ Flask-JWT-Extended
 pydantic
 flasgger
 alembic
+black
+flake8

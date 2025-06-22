@@ -5,91 +5,103 @@ from models import db
 from flasgger import swag_from
 from datetime import datetime
 
-bp_auth = Blueprint('auth', __name__)
+bp_auth = Blueprint("auth", __name__)
 
-@bp_auth.route('/register', methods=['POST'])
-@swag_from({
-    'tags': ['auth'],
-    'parameters': [
-        {
-            'in': 'body',
-            'name': 'body',
-            'required': True,
-            'schema': {
-                'type': 'object',
-                'properties': {
-                    'username': {'type': 'string'},
-                    'password': {'type': 'string'},
-                    'dateOfBirth': {'type': 'string', 'format': 'date', 'description': 'YYYY-MM-DD'}
-                }
+
+@bp_auth.route("/register", methods=["POST"])
+@swag_from(
+    {
+        "tags": ["auth"],
+        "parameters": [
+            {
+                "in": "body",
+                "name": "body",
+                "required": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "username": {"type": "string"},
+                        "password": {"type": "string"},
+                        "dateOfBirth": {
+                            "type": "string",
+                            "format": "date",
+                            "description": "YYYY-MM-DD",
+                        },
+                    },
+                },
             }
-        }
-    ],
-    'responses': {
-        201: {'description': 'Usuário criado com sucesso'},
-        400: {'description': 'Usuário já existe'}
+        ],
+        "responses": {
+            201: {"description": "Usuário criado com sucesso"},
+            400: {"description": "Usuário já existe"},
+        },
     }
-})
+)
 def register_user():
     data = request.get_json()
-    if User.query.filter_by(username=data['username']).first():
+    if User.query.filter_by(username=data["username"]).first():
         return jsonify({"error": "User already exists"}), 400
 
     birth_of_date = None
-    date_of_birth_str = data.get('dateOfBirth')
+    date_of_birth_str = data.get("dateOfBirth")
     if date_of_birth_str:
         try:
-            birth_of_date = datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
+            birth_of_date = datetime.strptime(date_of_birth_str, "%Y-%m-%d").date()
         except ValueError:
-            return jsonify({"error": "Invalid dateOfBirth format. Use YYYY-MM-DD."}), 400
+            return (
+                jsonify({"error": "Invalid dateOfBirth format. Use YYYY-MM-DD."}),
+                400,
+            )
 
     new_user = User(
-        username=data['username'],
-        password=data['password'],
-        birth_of_date=birth_of_date
+        username=data["username"],
+        password=data["password"],
+        birth_of_date=birth_of_date,
     )
     db.session.add(new_user)
     db.session.commit()
     return jsonify({"msg": "User created"}), 201
 
-@bp_auth.route('/login', methods=['POST'])
-@swag_from({
-    'tags': ['auth'],
-    'parameters': [
-        {
-            'in': 'body',
-            'name': 'body',
-            'required': True,
-            'schema': {
-                'type': 'object',
-                'properties': {
-                    'username': {'type': 'string'},
-                    'password': {'type': 'string'}
-                }
+
+@bp_auth.route("/login", methods=["POST"])
+@swag_from(
+    {
+        "tags": ["auth"],
+        "parameters": [
+            {
+                "in": "body",
+                "name": "body",
+                "required": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "username": {"type": "string"},
+                        "password": {"type": "string"},
+                    },
+                },
             }
-        }
-    ],
-    'responses': {
-        200: {'description': 'Login bem sucedido, retorna JWT'},
-        401: {'description': 'Credenciais inválidas'}
+        ],
+        "responses": {
+            200: {"description": "Login bem sucedido, retorna JWT"},
+            401: {"description": "Credenciais inválidas"},
+        },
     }
-})
+)
 def login():
     data = request.get_json()
-    user = User.query.filter_by(username=data['username']).first()
-    if user and user.password == data['password']:
+    user = User.query.filter_by(username=data["username"]).first()
+    if user and user.password == data["password"]:
         token = create_access_token(identity=str(user.id))
         return jsonify({"access_token": token}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
-@bp_auth.route('/protected', methods=['GET'])
-@swag_from({
-    'tags': ['auth'],
-    'responses': {
-        200: {'description': 'Acesso autorizado'}
-    }
-})
+
+@bp_auth.route("/protected", methods=["GET"])
+@swag_from({"tags": ["auth"], "responses": {200: {"description": "Acesso autorizado"}}})
 @jwt_required()
 def protected():
     current_user_id = get_jwt_identity()
-    return jsonify({"msg": f"Usuário com ID {current_user_id} acessou a rota protegida."}), 200
+    return (
+        jsonify({"msg": f"Usuário com ID {current_user_id} acessou a rota protegida."}),
+        200,
+    )
