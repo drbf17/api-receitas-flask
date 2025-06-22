@@ -3,6 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from models.users.user import User
 from models import db
 from flasgger import swag_from
+from datetime import datetime
 
 bp_auth = Blueprint('auth', __name__)
 
@@ -18,7 +19,8 @@ bp_auth = Blueprint('auth', __name__)
                 'type': 'object',
                 'properties': {
                     'username': {'type': 'string'},
-                    'password': {'type': 'string'}
+                    'password': {'type': 'string'},
+                    'dateOfBirth': {'type': 'string', 'format': 'date', 'description': 'YYYY-MM-DD'}
                 }
             }
         }
@@ -32,7 +34,20 @@ def register_user():
     data = request.get_json()
     if User.query.filter_by(username=data['username']).first():
         return jsonify({"error": "User already exists"}), 400
-    new_user = User(username=data['username'], password=data['password'])
+
+    birth_of_date = None
+    date_of_birth_str = data.get('dateOfBirth')
+    if date_of_birth_str:
+        try:
+            birth_of_date = datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({"error": "Invalid dateOfBirth format. Use YYYY-MM-DD."}), 400
+
+    new_user = User(
+        username=data['username'],
+        password=data['password'],
+        birth_of_date=birth_of_date
+    )
     db.session.add(new_user)
     db.session.commit()
     return jsonify({"msg": "User created"}), 201
